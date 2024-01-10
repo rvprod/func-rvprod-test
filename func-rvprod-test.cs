@@ -1,6 +1,8 @@
 using System;
+using System.Threading.Tasks;
+using Azure.Identity;
+using Azure.Security.KeyVault.Secrets;
 using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Host;
 using Microsoft.Extensions.Logging;
 
 namespace rvprod
@@ -8,9 +10,24 @@ namespace rvprod
     public class func_rvprod_test
     {
         [FunctionName("func_rvprod_test")]
-        public void Run([TimerTrigger("0 */5 * * * *")]TimerInfo myTimer, ILogger log)
+        public async Task Run([TimerTrigger("0 */5 * * * *")] TimerInfo myTimer, ILogger log)
         {
-            log.LogInformation($"C# Timer trigger function executed at: {DateTime.Now}");
+            string secretName = "MySecret";
+            string secretValue = "";
+            var keyVaultUri = System.Environment.GetEnvironmentVariable("KEY_VAULT_URI");
+            var credential = new DefaultAzureCredential();
+            var client = new SecretClient(new Uri(keyVaultUri), credential);
+            try
+            {
+                KeyVaultSecret secret = await client.GetSecretAsync(secretName);
+                secretValue = secret.Value;
+            }
+            catch (Exception ex)
+            {
+                log.LogError($"Failed to retrieve the secret: {ex.Message}");
+            }
+
+            log.LogInformation($"Retrieve secret: {secretValue}");
         }
     }
 }
